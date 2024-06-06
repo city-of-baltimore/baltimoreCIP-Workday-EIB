@@ -17,6 +17,6 @@ As of June 6, 2024, this project uses the Capital Projects Six-Year CIP report f
 
 Additional templates should be added to the `files` folder. The source data is stored in the un-tracked folder `_targets/user/data` and can be provided to authorized users where appropriate.
 
-The output files are located in the `_output` folder.
+To run this pipeline, add the source files to this folder and then run `targets::tar_make()`. The output files are located in the `_output` folder.
 
 For questions, please contact Eli Pousson, Data Lead with the Baltimore City Department of Planning, at eli.pousson@baltimorecity.gov.
