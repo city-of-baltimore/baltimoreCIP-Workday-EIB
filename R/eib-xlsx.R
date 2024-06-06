@@ -1,0 +1,110 @@
+#' Load fields from an EIB workbook
+load_eib_fields <- function(x, ..., sheet = 1, start_row = 5, start_col = 2) {
+  eib_wb <- openxlsx2::wb_read(
+    x,
+    sheet = sheet,
+    start_row = start_row,
+    start_col = start_col
+  )
+
+  names(eib_wb)
+}
+
+#' Write a data frame to a single sheet
+write_eib_wb_sheet <- function(data,
+                               template,
+                               sheet = 1,
+                               ...,
+                               start_row = 6,
+                               col_offset = 1) {
+  stopifnot(is.data.frame(data))
+
+  if (is.character(template)) {
+    template <- openxlsx2::wb_load(template, ...)
+  }
+
+  wb_fields <- load_eib_fields(
+    template,
+    sheet = sheet,
+    start_row = start_row - 1
+  )
+
+  wb_fields <- wb_fields[!is.na(wb_fields)]
+
+  data <- data |>
+    select(any_of(wb_fields))
+
+  nm <- names(data)
+
+  reduce_seq_len(
+    # Use column index as vector
+    data,
+    \(wb, y) {
+      start_col <- match(nm[[y]], wb_fields) + col_offset
+
+      openxlsx2::write_data(
+        wb,
+        # Subset each column
+        x = data[[y]],
+        col_names = FALSE,
+        # Write to matching column in sheet
+        sheet = sheet,
+        start_col = start_col,
+        start_row = start_row
+      )
+    },
+    .init = template
+  )
+}
+
+#' Write data to one or more sheets in an EIB workbook
+save_eib_wb_sheets <- function(
+    data,
+    file,
+    template,
+    overwrite = FALSE,
+    sheets = 1,
+    start_row = 6) {
+  wb_template <- openxlsx2::wb_load(template)
+
+  if (!is.data.frame(data)) {
+    if (rlang::is_named(data)) {
+      # sheets is ignored if data is named
+      sheets <- names(data)
+    }
+
+    vctrs::vec_check_size(
+      data,
+      size = length(sheets)
+    )
+
+    wb_update <- reduce_seq_len(
+      # Use column index as vector
+      .x = data,
+      .f = \(wb, idx) {
+        write_eib_wb_sheet(
+          data[[idx]],
+          template = wb,
+          sheet = sheets[[idx]],
+          start_row = start_row
+        )
+      },
+      .init = wb_template
+    )
+  } else {
+    wb_update <- write_eib_wb_sheet(
+      data,
+      template = wb_template,
+      sheet = sheets,
+      start_row = start_row
+    )
+  }
+
+  openxlsx2::wb_save(
+    wb_update,
+    file = file,
+    overwrite = overwrite
+  )
+
+  data
+}
