@@ -10,9 +10,7 @@ tar_option_set(
   format = "qs"
 )
 
-# Run the R scripts in the R/ folder with your custom functions:
 tar_source()
-# tar_source("other_functions.R") # Source other scripts as needed.
 
 options(
   curr_fy_col = "FY2025",
@@ -37,15 +35,15 @@ tar_plan(
     # Categorize by type
     dplyr::mutate(
       put = is.na(`Plan Status`),
-      amend = `Plan Status` == "Available",
-      new = `Plan Status` == "Draft"
+      new = `Plan Status` == "Draft",
+      amend = `Plan Status` == "Available"
     ),
 
   # Make a list of project IDs for each type
   project_eib_type = list(
     "put" = filter(prj_plan_info_report, put) |> pull(`Project ID`),
-    "amend" = filter(prj_plan_info_report, amend) |> pull(`Project ID`),
-    "new" = filter(prj_plan_info_report, new) |> pull(`Project ID`)
+    "new" = filter(prj_plan_info_report, new) |> pull(`Project ID`),
+    "amend" = filter(prj_plan_info_report, amend) |> pull(`Project ID`)
   ),
 
   # Set file path for Capital Projects 6-Year CIP report
@@ -84,21 +82,6 @@ tar_plan(
     overwrite = TRUE
   ),
 
-  # Create amended capital projects EIB
-  amend_budget_eib = cip_data |>
-    filter(
-      .data[["Project Code"]] %in% project_eib_type[["amend"]]
-    ) |>
-    build_ammend_budget_eib(),
-
-  # Export amend budget EIB
-  amend_budget_eib_out = save_eib_wb_sheets(
-    amend_budget_eib,
-    template = here::here("files", "COB_Import_Project_Budget_Amendment Template.xlsx"),
-    file = here::here("_output", "COB_Import_Project_Budget_Amendment.xlsx"),
-    overwrite = TRUE
-  ),
-
   # Create new capital projects EIB
   new_budget_eib = cip_data |>
     filter(
@@ -112,5 +95,21 @@ tar_plan(
     template = here::here("files", "COB New Capital Project Budget EIB Load Template.xlsx"),
     file = here::here("_output", "COB New Capital Project Budget EIB Load.xlsx"),
     overwrite = TRUE
+  ),
+
+  # Create amended capital projects EIB
+  amend_budget_eib = cip_data |>
+    filter(
+      .data[["Project Code"]] %in% project_eib_type[["amend"]]
+    ) |>
+    build_ammend_budget_eib(),
+
+  # Export amend budget EIB
+  amend_budget_eib_out = save_eib_wb_sheets(
+    amend_budget_eib,
+    template = here::here("files", "COB_Import_Project_Budget_Amendment Template.xlsx"),
+    file = here::here("_output", "COB_Import_Project_Budget_Amendment.xlsx"),
+    overwrite = TRUE
   )
+
 )
