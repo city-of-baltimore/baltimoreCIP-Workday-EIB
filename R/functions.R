@@ -25,15 +25,20 @@ fmt_cip_data <- function(
     select(!any_of(drop_cols)) |>
     filter(!is.na(`Project Code`)) |>
     fmt_wd_code_name(
+      "FGSFund Code",
+      "FGSFund Name",
+      "^[:digit:]+"
+    ) |>
+    fmt_wd_code_name(
+      "Cost Center Code",
+      "Cost Center Name",
+      "^(CAP|RES)[:digit:]+"
+    ) |>
+    fmt_wd_code_name(
       "Project Code",
       "Project Name",
       "^PRJ[:digit:]+",
       new_name_col = "Project Name Short"
-    ) |>
-    fmt_wd_code_name(
-      "FGSFund Code",
-      "FGSFund Name",
-      "^[:digit:]+"
     ) |>
     fmt_wd_code_name(
       "Revenue Category Code",
@@ -47,11 +52,6 @@ fmt_cip_data <- function(
     ) |>
     mutate(
       `RAccount Name` = str_remove(`RAccount Name`, "^:")
-    ) |>
-    fmt_wd_code_name(
-      "Cost Center Code",
-      "Cost Center Name",
-      "^(CAP|RES)[:digit:]+"
     )
 }
 
@@ -67,8 +67,8 @@ fmt_eib_budget <- function(
     credit_col = "Budget Credit Amount",
     ledger_account_col = "Ledger Account Summary",
     by = c(
-      "Cost Center Code",
       "FGSFund Code",
+      "Cost Center Code",
       "Project Code"
     )) {
   credit_data <- data |>
@@ -83,7 +83,7 @@ fmt_eib_budget <- function(
     dplyr::summarise(
       "{ledger_account_col}" := "AllBudgetExpenses",
       # "{credit_col}" := 0,
-      "{debit_col}" := sum(.data[[amt_col]], na.rm = TRUE) * -1,
+      "{debit_col}" := sum(.data[[amt_col]], na.rm = TRUE),
       .by = all_of(by)
     )
 
@@ -121,11 +121,36 @@ build_put_budget_eib <- function(data,
                                    "Enable For Allocations Reference" = "n",
                                    "Plan Calculation Type" = "Capital_Project_Active_Budget"
                                  )) {
-  data |>
+  data <- data |>
     dplyr::filter(
       !is.na(.data[[project_code_col]]),
       .data[[amt_col]] > 0
-    ) |>
+    )
+
+  if (any(is.na(data[["Project End Date"]]))) {
+    cli::cli_warn(
+      "Budget Plan can't be loaded for any projects with a missing end date."
+    )
+
+    data <- data |>
+      dplyr::filter(
+        !is.na(.data[["Project End Date"]])
+      )
+  }
+
+  # FIXME: Add date checks
+  if (any(data[["Project Start Date"]] > lubridate::date("2024-07-01 UTC"))) {
+    cli::cli_warn(
+      "Budget Plan can't be loaded for any projects with a missing end date."
+    )
+
+    data <- data |>
+      dplyr::filter(
+        !is.na(.data[["Project End Date"]])
+      )
+  }
+
+  data |>
     dplyr::distinct(pick(all_of(project_code_col)), .keep_all = TRUE) |>
     dplyr::select(all_of(cols)) |>
     dplyr::mutate(
@@ -150,8 +175,8 @@ fmt_header_key <- function(data,
 build_ammend_budget_eib <- function(data,
                                     budget_cols = c(
                                       "Budget Name" = "Project Name",
-                                      "Fiscal Year*" = "Fiscal Year From",
-                                      header_key_col
+                                      "Fiscal Year*" = "Fiscal Year Start",
+                                      "Header Key*" = header_key_col
                                     ),
                                     entry_cols = c(
                                       "Project" = "Project Code",
@@ -166,8 +191,8 @@ build_ammend_budget_eib <- function(data,
                                     budget_defaults = list(
                                       # FIXME: Figure out how the fiscal year is filled in
                                       # "Fiscal Year*" = getOption("curr_fy", 2024),
-                                      "Amendment Date*" = getOption("curr_ammend_date", "7/1/24"),
-                                      "Description*" = getOption("curr_fy_memo", "FY-25 Capital Budget"),
+                                      "Amendment Date*" = getOption("curr_ammend_date"),
+                                      "Description*" = getOption("curr_fy_memo"),
                                       "Budget Amendment Type*" = "Supplemental_Project_Funding",
                                       "Auto Complete" = "Y",
                                       "Submit" = "Y",
@@ -176,10 +201,10 @@ build_ammend_budget_eib <- function(data,
                                     entry_defaults = list(
                                       "Fiscal Time Interval*" = "Jul",
                                       "Account Set" = "Parent_Account_Set",
-                                      "Memo" = getOption("curr_fy_memo", "FY-25 Capital Budget")
+                                      "Memo" = getOption("curr_fy_memo")
                                     ),
                                     project_code_col = "Project Code",
-                                    amt_col = getOption("curr_fy_col", "FY2025"),
+                                    amt_col = getOption("curr_fy_col"),
                                     header_key_col = "Header Key",
                                     line_key_col = "Line Key",
                                     debit_col = "Budget Debit Amount",
@@ -203,7 +228,7 @@ build_ammend_budget_eib <- function(data,
     ) |>
     dplyr::arrange(
       # FIXME: Hard-coded header key value
-      `Header Key`
+      `Header Key*`
     )
 
   entry_data <- data |>
@@ -240,11 +265,12 @@ build_ammend_budget_eib <- function(data,
 build_new_budget_eib <- function(data,
                                  budget_cols = c(
                                    "Budget Name*" = "Project Name",
-                                   header_key_col
+                                   "Header Key*" = header_key_col
                                  ),
                                  budget_defaults = list(
                                    "Import Mode" = "REPLACE_ALL",
                                    "Auto Complete" = "Y",
+                                   "Submit" = "Y",
                                    "Budget Structure*" = "Capital_Project_Budget"
                                  ),
                                  line_order_col = "Line Order",
@@ -252,15 +278,20 @@ build_new_budget_eib <- function(data,
                                    "Project" = "Project Code",
                                    ledger_account_col,
                                    header_key_col,
-                                   line_key_col
+                                   line_key_col,
+                                   debit_col,
+                                   credit_col,
+                                   "Fund" = "FGSFund Code",
+                                   "Cost Center" = "Cost Center Code",
+                                   "Revenue Category" = "Revenue Category Code"
                                  ),
                                  line_defaults = list(
-                                   "Memo" = getOption("curr_fy_memo", "FY-25 Capital Budget"),
+                                   "Memo" = getOption("curr_fy_memo"),
                                    "Account Set" = "Parent_Account_Set",
                                    "Fiscal Time Interval*" = "Jul"
                                  ),
                                  project_code_col = "Project Code",
-                                 amt_col = getOption("curr_fy_col", "FY2025"),
+                                 amt_col = getOption("curr_fy_col"),
                                  header_key_col = "Header Key",
                                  line_key_col = "Line Key",
                                  debit_col = "Budget Debit Amount",
@@ -271,12 +302,16 @@ build_new_budget_eib <- function(data,
       .data[[amt_col]] > 0
     )
 
-  budget_data <- data |>
+  budget_data_keys <- data |>
+    # FIXME: Correct hard-coded project code ID
+    # dplyr::distinct(`Project Code`, .keep_all = TRUE) |>
     dplyr::distinct(pick(all_of(project_code_col)), .keep_all = TRUE) |>
     fmt_header_key(
       project_code_col = project_code_col,
       header_key_col = header_key_col
-    ) |>
+    )
+
+  budget_data <- budget_data_keys |>
     dplyr::select(
       all_of(budget_cols)
     ) |>
@@ -297,13 +332,24 @@ build_new_budget_eib <- function(data,
     dplyr::select(
       all_of(line_cols)
     ) |>
+    dplyr::left_join(
+      budget_data_keys |>
+        dplyr::select(
+          all_of(c(header_key_col,
+            "Year" = "Fiscal Year Start"
+          ))
+        ),
+      by = header_key_col
+    ) |>
     dplyr::bind_cols(
       tibble::as_tibble(line_defaults)
     ) |>
     dplyr::mutate(
       "{line_order_col}" := .data[[line_key_col]],
       .after = all_of(line_key_col)
-    )
+    ) |>
+    # FIXME: Correct hard-coded column names
+    dplyr::arrange(`Header Key`, `Line Key`)
 
   list(
     "Import Budget High Volume" = budget_data,

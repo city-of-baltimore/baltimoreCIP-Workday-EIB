@@ -10,6 +10,21 @@ load_eib_fields <- function(x, ..., sheet = 1, start_row = 5, start_col = 2) {
   names(eib_wb)
 }
 
+#'
+summarise_cip_data_fy <- function(data,
+                                  .by = NULL) {
+  data |>
+    summarise(
+      across(
+        starts_with("FY"),
+        \(x) {
+          sum(x, na.rm = TRUE)
+        }
+      ),
+      .by = all_of(.by)
+    )
+}
+
 #' Write a data frame to a single sheet
 write_eib_wb_sheet <- function(data,
                                template,
