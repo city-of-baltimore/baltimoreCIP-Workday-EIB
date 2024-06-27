@@ -107,10 +107,16 @@ tar_plan(
     dplyr::left_join(
       # Join a Fiscal Year column inferred from the Date From column
       prj_plan_info_report,
-      # relationship = "many-to-one",
+      relationship = "many-to-one",
       by = "Project Code",
       na_matches = "never"
     ),
+  cip_curr_fy_transfers = cip_data |>
+    filter(
+      .data[[getOption("curr_fy_col")]] < 0
+    ) |>
+    distinct(`Project Code`) |>
+    pull(`Project Code`),
   cip_curr_fy_projects = cip_data |>
     filter(
       .data[[getOption("curr_fy_col")]] > 0
@@ -122,8 +128,7 @@ tar_plan(
     validate_budget_plan_dates(curr_fy_start_date) |>
     dplyr::select(
       !c(
-        starts_with("FY"),
-        starts_with("Revenue"),
+        starts_with("FY"), starts_with("Revenue"),
         any_of(c("Fiscal Year Start"))
       )
     ) |>
@@ -184,9 +189,14 @@ tar_plan(
   # Create amended capital projects EIB
   amend_budget_eib = cip_data |>
     filter(
-      .data[["Project Code"]] %in% project_eib_type[["amend"]]
+      .data[["Project Code"]] %in% c(
+        project_eib_type[["amend"]],
+        cip_curr_fy_transfers
+      ),
+      .data[[getOption("curr_fy_col")]] != 0,
+      amend
     ) |>
-    build_ammend_budget_eib(),
+    build_ammend_budget_eib(amt_min = NULL),
 
   # Export amend budget EIB
   amend_budget_eib_out = save_eib_wb_sheets(

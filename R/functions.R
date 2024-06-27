@@ -289,12 +289,15 @@ build_ammend_budget_eib <- function(data,
                                     line_key_col = "Line Key",
                                     ledger_account_col = "Ledger Account Summary",
                                     debit_col = "Budget Debit Amount",
-                                    credit_col = "Budget Credit Amount") {
-  # Filter to positive amount values only
-  data <- data |>
-    dplyr::filter(
-      .data[[amt_col]] > 0
-    )
+                                    credit_col = "Budget Credit Amount",
+                                    amt_min = 0) {
+  if (is.numeric(amt_min)) {
+    # Filter to positive amount values only
+    data <- data |>
+      dplyr::filter(
+        .data[[amt_col]] > amt_min
+      )
+  }
 
   # Filter invalid project start and end date values
   data <- data |>
