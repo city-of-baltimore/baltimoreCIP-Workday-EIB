@@ -17,27 +17,6 @@ load_eib_fields <- function(file, ..., sheet = 1, start_row = 5, start_col = 2) 
   names(eib_wb)
 }
 
-#' Summarise CIP data by fiscal year
-#'
-#' [summarise_cip_data_fy()] wraps [dplyr::summarise()] to combine fiscal year
-#' amount columns grouped by some other variables.
-#'
-#' @returns A data frame with FY columns summed by the column names passed to
-#'   .by
-summarise_cip_data_fy <- function(data,
-                                  .by = NULL) {
-  data |>
-    summarise(
-      across(
-        starts_with("FY"),
-        \(x) {
-          sum(x, na.rm = TRUE)
-        }
-      ),
-      .by = all_of(.by)
-    )
-}
-
 #' Write a data frame to an Excel workbook
 #'
 #' [write_data_eib_sheet()] uses [openxlsx2::write_data()] to write a data frame
