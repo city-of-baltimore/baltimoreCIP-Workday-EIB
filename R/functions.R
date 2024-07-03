@@ -1,35 +1,3 @@
-validate_project_dates <- function(data,
-                                   curr_fy_start_date) {
-  data |>
-    dplyr::mutate(
-      "Project Start Date Flag" := case_when(
-        `Project Start Date` > curr_fy_start_date ~ "Start date after current fiscal year",
-        `Project Start Date` < lubridate::date("2022-07-01") ~ "Start date before FY23 fiscal year",
-        is.na(`Project Start Date`) ~ "Missing start date"
-      ),
-      "Project End Date Flag" := case_when(
-        is.na(`Project End Date`) ~ "Missing end date",
-        `Project End Date` < curr_fy_start_date ~ "End date before current fiscal year",
-        `Project End Date` == curr_fy_start_date ~ "End date set to first day of current fiscal year"
-      )
-    )
-}
-
-validate_budget_plan_dates <- function(data,
-                                       curr_fy_start_date = NULL) {
-  curr_fy_start_date <- lubridate::as_date(curr_fy_start_date)
-
-  data |>
-    dplyr::mutate(
-      "Date From Flag" := case_when(
-        is.na(`Date From`) & is.na(`Plan Status`) ~ "Missing Date From",
-        `Date From` < curr_fy_start_date ~ "Date From before current fiscal year",
-        `Date From` > `Project Start Date` ~ "Date From after Project Start Date",
-        `Date From` != `Project Start Date` ~ "Date From mismatch with Project Start Date"
-      )
-    )
-}
-
 #' Format a pair of code and name columns from a Workday or Adaptive Planning report
 fmt_wd_code_name <- function(data,
                              code_col,
@@ -87,7 +55,7 @@ fmt_cip_data <- function(
     )
 }
 
-
+#' Use `purrr::list_cbind` to bind a set of "default" column values
 cbind_default_cols <- function(data, default_cols) {
   if (!is.data.frame(default_cols)) {
     default_cols <- tibble::as_tibble(default_cols)
@@ -145,6 +113,13 @@ fmt_eib_budget <- function(
       .by = all_of(by)
     )
 
+  # FIXME: 2024-06-28 - reminder to add handling for the de-appropriations.
+  # Then we can rerun the Plan report from Production, and rerun all the EIBs.
+  # Bernie also noted that the projects that we are taking money from (the
+  # deappropriations, or those with a negative amount) should be switched, such
+  # that the positive amount for the revenues goes into the debit column and a
+  # positive amount for expenses goes into the credit column
+
   credit_data |>
     dplyr::bind_rows(
       debit_data
@@ -158,6 +133,7 @@ fmt_eib_budget <- function(
     dplyr::arrange({{ project_code_col }})
 }
 
+#' Filter projects with a missing end date
 filter_project_end_date <- function(data) {
   project_missing_end_date <- data |>
     filter(
@@ -184,10 +160,12 @@ filter_project_end_date <- function(data) {
   data
 }
 
-filter_project_start_date <- function(data) {
+#' Filter projects with a start date after the start of the current fiscal year
+filter_project_start_date <- function(data,
+                                      curr_fy_start_date = "2024-07-01 UTC") {
   project_late_start_date <- data |>
     filter(
-      .data[["Project Start Date"]] > lubridate::date("2024-07-01 UTC")
+      .data[["Project Start Date"]] > lubridate::date(curr_fy_start_date)
     ) |>
     distinct(`Project Code`)
 
@@ -205,7 +183,7 @@ filter_project_start_date <- function(data) {
 
     data <- data |>
       dplyr::filter(
-        .data[["Project Start Date"]] <= lubridate::date("2024-07-01 UTC")
+        .data[["Project Start Date"]] <= lubridate::date(curr_fy_start_date)
       )
   }
 
@@ -299,6 +277,11 @@ build_ammend_budget_eib <- function(data,
       )
   }
 
+  data <- data |>
+    dplyr::filter(
+      .data[[amt_col]] != 0
+    )
+
   # Filter invalid project start and end date values
   data <- data |>
     filter_project_end_date() |>
@@ -316,9 +299,8 @@ build_ammend_budget_eib <- function(data,
     dplyr::distinct() |>
     cbind_default_cols(budget_defaults) |>
     dplyr::arrange(
-      # FIXME: Hard-coded header key value
       pick(
-        all_of("Header Key*")
+        all_of(names(budget_cols)[budget_cols == header_key_col])
       )
     )
 
@@ -356,6 +338,7 @@ build_new_budget_eib <- function(data,
                                    "Header Key*" = header_key_col
                                  ),
                                  budget_defaults = list(
+                                   "Budget Memo" = getOption("curr_fy_memo"),
                                    "Import Mode" = "REPLACE_ALL",
                                    "Auto Complete" = "Y",
                                    "Submit" = "Y",
@@ -369,13 +352,18 @@ build_new_budget_eib <- function(data,
                                    line_key_col,
                                    debit_col,
                                    credit_col,
+                                   # TODO: See below - set Fiscal Time Interval correctly
+                                   # "Fiscal Time Interval*" = "Jul",
                                    "Fund" = "FGSFund Code",
                                    "Cost Center" = "Cost Center Code",
                                    "Revenue Category" = "Revenue Category Code"
                                  ),
                                  line_defaults = list(
-                                   "Memo" = getOption("curr_fy_memo"),
                                    "Account Set" = "Parent_Account_Set",
+                                   # FIXME: Fiscal time interval should be set
+                                   # based on the month of the budget plan Date
+                                   # From
+
                                    "Fiscal Time Interval*" = "Jul"
                                  ),
                                  project_code_col = "Project Code",
@@ -384,10 +372,18 @@ build_new_budget_eib <- function(data,
                                  line_key_col = "Line Key",
                                  debit_col = "Budget Debit Amount",
                                  credit_col = "Budget Credit Amount",
-                                 ledger_account_col = "Ledger Account or Ledger Account Summary") {
+                                 ledger_account_col = "Ledger Account or Ledger Account Summary",
+                                 fy_col = "Fiscal Year Start",
+                                 default_fy_start = getOption("curr_fy")) {
   data <- data |>
     dplyr::filter(
       .data[[amt_col]] > 0
+    ) |>
+    tidyr::replace_na(
+      replace = set_names(
+        list(default_fy_start),
+        fy_col
+      )
     )
 
   budget_data_keys <- data |>
@@ -422,7 +418,7 @@ build_new_budget_eib <- function(data,
           all_of(
             c(
               header_key_col,
-              "Year" = "Fiscal Year Start"
+              "Year" = fy_col
             )
           )
         ),
@@ -444,4 +440,38 @@ build_new_budget_eib <- function(data,
     "Import Budget High Volume" = budget_data,
     "Budget Lines Data" = budget_lines_data
   )
+}
+
+#' Validate project start and end dates
+validate_project_dates <- function(data,
+                                   curr_fy_start_date) {
+  data |>
+    dplyr::mutate(
+      "Project Start Date Flag" := case_when(
+        `Project Start Date` > curr_fy_start_date ~ "Start date after current fiscal year",
+        `Project Start Date` < lubridate::date("2022-07-01") ~ "Start date before FY23 fiscal year",
+        is.na(`Project Start Date`) ~ "Missing start date"
+      ),
+      "Project End Date Flag" := case_when(
+        is.na(`Project End Date`) ~ "Missing end date",
+        `Project End Date` < curr_fy_start_date ~ "End date before current fiscal year",
+        `Project End Date` == curr_fy_start_date ~ "End date set to first day of current fiscal year"
+      )
+    )
+}
+
+#' Validate budget plan "Date From" values
+validate_budget_plan_dates <- function(data,
+                                       curr_fy_start_date = NULL) {
+  curr_fy_start_date <- lubridate::as_date(curr_fy_start_date)
+
+  data |>
+    dplyr::mutate(
+      "Date From Flag" := case_when(
+        is.na(`Date From`) & is.na(`Plan Status`) ~ "Missing Date From",
+        `Date From` < curr_fy_start_date ~ "Date From before current fiscal year",
+        `Date From` > `Project Start Date` ~ "Date From after Project Start Date",
+        `Date From` != `Project Start Date` ~ "Date From mismatch with Project Start Date"
+      )
+    )
 }

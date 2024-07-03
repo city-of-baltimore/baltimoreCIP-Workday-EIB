@@ -15,13 +15,13 @@ tar_source()
 
 options(
   cip_data_filename = "Capital_Projects_-_Six-Year_CIP.xlsx",
-  plan_info_filename = "Capital_Projects_With_Plan_Info 2024-06-24.xlsx",
+  plan_info_filename = "Capital_Projects_With_Plan_Info 06282024 0916.xlsx",
   plan_info_skip = 1,
   # plan_info_filename = "Capital_Projects_With_Plan_Info_Sandbox-2024-06-21.xlsx",
   # plan_info_skip = 3,
   invalid_date_report_filename = "2024-06-17_CIP-Projects_Invalid-Dates.xlsx",
   curr_fy_col = "FY2025",
-  curr_fy = 2024,
+  curr_fy = 2025,
   curr_fy_start_date_str = "2024-07-01",
   curr_ammend_date = as_date("2024-07-01"),
   curr_fy_memo = "FY-25 Capital Budget",
@@ -71,20 +71,23 @@ tar_plan(
       budget_plan_id == 1
     ) |>
     mutate(
-      `Project Start Date` = `Project Start Date`,
-      `Project End Date` = `Project End Date`,
+      `Project Start Date`,
+      `Project End Date`,
       `Project Code` = `Project ID`,
       `Date From`,
       `Date To`,
       `Plan Status`,
+      # FIXME: Added the following two lines on 2024-06-28 to try to trouble-shoot errors from the EIB
+      # `Temp Date From` = dplyr::coalesce(`Date From`, `Project Start Date`),
+      # `Fiscal Year Start` = year(`Temp Date From`) + (month(`Temp Date From`) >= 7),
       # NOTE: Fiscal year start is based on date from of the plan period
       # Not the Project start date
       `Fiscal Year Start` = year(`Date From`) + (month(`Date From`) >= 7),
       # Categorize by type
       put = is.na(`Plan Status`),
       # TODO: Document how the plan status is assigned
-      new = is.na(`Plan Status`) | `Plan Status` %in% c("Draft"),
-      amend = `Plan Status` %in% c("Available", "In Progress"),
+      new = is.na(`Plan Status`) | `Plan Status` %in% c("Draft", "In Progress"),
+      amend = `Plan Status` %in% c("Available"),
       .keep = "none"
     ),
 
@@ -111,12 +114,6 @@ tar_plan(
       by = "Project Code",
       na_matches = "never"
     ),
-  cip_curr_fy_transfers = cip_data |>
-    filter(
-      .data[[getOption("curr_fy_col")]] < 0
-    ) |>
-    distinct(`Project Code`) |>
-    pull(`Project Code`),
   cip_curr_fy_projects = cip_data |>
     filter(
       .data[[getOption("curr_fy_col")]] > 0
@@ -155,12 +152,13 @@ tar_plan(
   # Create EIB file for loading budget plans as draft
   put_budget_eib = cip_data |>
     filter(
-      .data[["Project Code"]] %in% project_eib_type[["put"]]
+      .data[[getOption("curr_fy_col")]] != 0,
+      put
     ) |>
     build_put_budget_eib(),
 
   # Export put budget EIB
-  put_budget_eib_out = save_eib_wb_sheets(
+  put_budget_eib_out = wb_save_eib_sheets(
     put_budget_eib,
     template = here::here("files", "Put_Budget_Template_Projects.xlsx"),
     file = here::here("_output", "Put_Budget_Projects.xlsx"),
@@ -170,16 +168,15 @@ tar_plan(
   # Create new capital projects EIB
   new_budget_eib = cip_data |>
     filter(
-      .data[["Project Code"]] %in% project_eib_type[["new"]]
+      .data[[getOption("curr_fy_col")]] != 0,
+      new
     ) |>
-    filter(
-      # FIXME: Temporarily adding filter to account for missing dates in report
-      !is.na(`Fiscal Year Start`)
-    ) |>
-    build_new_budget_eib(),
+    build_new_budget_eib(
+      default_fy_start = getOption("curr_fy")
+    ),
 
   # Export new budget EIB
-  new_budget_eib_out = save_eib_wb_sheets(
+  new_budget_eib_out = wb_save_eib_sheets(
     new_budget_eib,
     template = here::here("files", "COB New Capital Project Budget EIB Load Template.xlsx"),
     file = here::here("_output", "COB New Capital Project Budget EIB Load.xlsx"),
@@ -189,17 +186,13 @@ tar_plan(
   # Create amended capital projects EIB
   amend_budget_eib = cip_data |>
     filter(
-      .data[["Project Code"]] %in% c(
-        project_eib_type[["amend"]],
-        cip_curr_fy_transfers
-      ),
       .data[[getOption("curr_fy_col")]] != 0,
       amend
     ) |>
     build_ammend_budget_eib(amt_min = NULL),
 
   # Export amend budget EIB
-  amend_budget_eib_out = save_eib_wb_sheets(
+  amend_budget_eib_out = wb_save_eib_sheets(
     amend_budget_eib,
     template = here::here("files", "COB_Import_Project_Budget_Amendment Template.xlsx"),
     file = here::here("_output", "COB_Import_Project_Budget_Amendment.xlsx"),
