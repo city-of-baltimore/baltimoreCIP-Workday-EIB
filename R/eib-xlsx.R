@@ -19,17 +19,18 @@ load_eib_fields <- function(file, ..., sheet = 1, start_row = 5, start_col = 2) 
 
 #' Write a data frame to an Excel workbook
 #'
-#' [write_data_eib_sheet()] uses [openxlsx2::write_data()] to write a data frame
-#' to a single sheet of an Excel workbook.
+#' [add_data_eib_sheet()] uses the `add_data` method for the
+#' [openxlsx2::wbWorkbook] class to write a data frame to a single sheet of an
+#' Excel workbook.
 #'
-#' @inheritParams openxlsx2::write_data
+#' @inheritParams openxlsx2::wb_add_data
 #' @inheritDotParams openxlsx2::wb_load -file
-write_data_eib_sheet <- function(data,
-                                 template,
-                                 sheet = 1,
-                                 ...,
-                                 start_row = 6,
-                                 col_offset = 1) {
+add_data_eib_sheet <- function(data,
+                               template,
+                               sheet = 1,
+                               ...,
+                               start_row = 6,
+                               col_offset = 1) {
   stopifnot(is.data.frame(data))
 
   if (is.character(template)) {
@@ -55,8 +56,7 @@ write_data_eib_sheet <- function(data,
     \(wb, y) {
       start_col <- match(nm[[y]], wb_fields) + col_offset
 
-      openxlsx2::write_data(
-        wb,
+      wb$add_data(
         # Subset each column
         x = data[[y]],
         col_names = FALSE,
@@ -80,7 +80,7 @@ write_data_eib_sheet <- function(data,
 #'   Spreadsheet. If data is a named list, the names of the list are used in
 #'   place of any value supplied to `sheets`.
 #' @inheritParams openxlsx2::wb_save
-#' @inheritParams write_data_eib_sheet
+#' @inheritParams add_data_eib_sheet
 #' @returns Invisibly returns the input data.
 #' @importFrom openxlsx2 wb_load wb_save
 #' @importFrom rlang is_named
@@ -112,7 +112,7 @@ wb_save_eib_sheets <- function(
       # Use column index as vector
       .x = data,
       .f = \(wb, idx) {
-        write_data_eib_sheet(
+        add_data_eib_sheet(
           data[[idx]],
           template = wb,
           sheet = sheets[[idx]],
@@ -123,7 +123,7 @@ wb_save_eib_sheets <- function(
       .init = wb_template
     )
   } else {
-    wb_update <- write_data_eib_sheet(
+    wb_update <- add_data_eib_sheet(
       data,
       template = wb_template,
       sheet = sheets,
