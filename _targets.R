@@ -209,7 +209,13 @@ tar_plan(
       #     new_budget_eib[["Import Budget High Volume"]][["Budget Name*"]]
       #   )
       # )
-    )
+    ),
+  # Render README
+  tar_quarto(
+    readme_qmd,
+    path = here::here("README.qmd")
+  )
+
   # TODO: Implement a summary report
   #   tarchetypes::tar_quarto(
   #     qto_report,
