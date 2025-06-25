@@ -19,7 +19,7 @@ exported reports from Adaptive Planning into spreadsheets based on
 templates for the Workday Enterprise Interface Builder (EIB).
 
 For questions, please contact Eli Pousson, Data Lead with the Baltimore
-City Department of Planning, at eli.pousson@baltimorecity.gov{.email}.
+City Department of Planning, at eli.pousson@baltimorecity.gov.
 
 > [!TIP]
 >
