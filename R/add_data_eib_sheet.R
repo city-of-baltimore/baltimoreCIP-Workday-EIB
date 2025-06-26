@@ -6,12 +6,14 @@
 #'
 #' @inheritParams openxlsx2::wb_add_data
 #' @inheritDotParams openxlsx2::wb_load -file
-add_data_eib_sheet <- function(data,
-                               template,
-                               sheet = 1,
-                               ...,
-                               start_row = 6,
-                               col_offset = 1) {
+add_data_eib_sheet <- function(
+  data,
+  template,
+  sheet = 1,
+  ...,
+  start_row = 6,
+  col_offset = 1
+) {
   stopifnot(is.data.frame(data))
 
   if (is.character(template)) {

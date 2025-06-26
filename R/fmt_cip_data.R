@@ -1,12 +1,15 @@
 #' Format CIP data by dropping select columns and formatting code/name column pairs
 fmt_cip_data <- function(
-    data,
-    drop_cols = c(
-      "PCode Code", "PCode Name",
-      "Fund, Grant, Special Purpose Code",
-      "Fund, Grant, Special Purpose Name",
-      "RObject Code", "Grant_Detail Code"
-    )) {
+  data,
+  drop_cols = c(
+    "PCode Code",
+    "PCode Name",
+    "Fund, Grant, Special Purpose Code",
+    "Fund, Grant, Special Purpose Name",
+    "RObject Code",
+    "Grant_Detail Code"
+  )
+) {
   data |>
     select(!any_of(drop_cols)) |>
     filter(!is.na(`Project Code`)) |>

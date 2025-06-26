@@ -14,15 +14,16 @@
 #' @importFrom rlang is_named
 #' @importFrom vctrs vec_check_size
 wb_save_eib_sheets <- function(
-    data,
-    file,
-    template,
-    overwrite = FALSE,
-    sheets = 1,
-    start_row = 6,
-    col_offset = 1,
-    dt_version = TRUE,
-    dt_format = "%Y-%m-%d_%I-%M-%S_%p") {
+  data,
+  file,
+  template,
+  overwrite = FALSE,
+  sheets = 1,
+  start_row = 6,
+  col_offset = 1,
+  dt_version = TRUE,
+  dt_format = "%Y-%m-%d_%I-%M-%S_%p"
+) {
   wb_template <- openxlsx2::wb_load(template)
 
   if (!is.data.frame(data)) {
@@ -62,8 +63,10 @@ wb_save_eib_sheets <- function(
 
   if (dt_version) {
     file <- paste0(
-      fs::path_ext_remove(file), "_",
-      format(Sys.time(), dt_format), ".",
+      fs::path_ext_remove(file),
+      "_",
+      format(Sys.time(), dt_format),
+      ".",
       fs::path_ext(file)
     )
   }

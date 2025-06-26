@@ -1,6 +1,8 @@
 #' Filter projects with a start date after the start of the current fiscal year
-filter_project_start_date <- function(data,
-                                      curr_fy_start_date = "2024-07-01 UTC") {
+filter_project_start_date <- function(
+  data,
+  curr_fy_start_date = "2024-07-01 UTC"
+) {
   project_late_start_date <- data |>
     filter(
       .data[["Project Start Date"]] > lubridate::date(curr_fy_start_date)

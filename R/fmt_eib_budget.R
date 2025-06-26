@@ -1,19 +1,20 @@
 #' Format EIB budget lines data
 fmt_eib_budget <- function(
-    data,
-    project_code_col = "Project Code",
-    revenue_col = "Revenue Category Code",
-    amt_col = getOption("curr_fy_col", "FY2025"),
-    header_key_col = "Header Key",
-    line_key_col = "Line Key",
-    debit_col = "Budget Debit Amount",
-    credit_col = "Budget Credit Amount",
-    ledger_account_col = "Ledger Account Summary",
-    by = c(
-      "FGSFund Code",
-      "Cost Center Code",
-      "Project Code"
-    )) {
+  data,
+  project_code_col = "Project Code",
+  revenue_col = "Revenue Category Code",
+  amt_col = getOption("curr_fy_col", "FY2025"),
+  header_key_col = "Header Key",
+  line_key_col = "Line Key",
+  debit_col = "Budget Debit Amount",
+  credit_col = "Budget Credit Amount",
+  ledger_account_col = "Ledger Account Summary",
+  by = c(
+    "FGSFund Code",
+    "Cost Center Code",
+    "Project Code"
+  )
+) {
   credit_data <- data |>
     dplyr::summarise(
       "{ledger_account_col}" := "AllProjectBudgetRevenues",

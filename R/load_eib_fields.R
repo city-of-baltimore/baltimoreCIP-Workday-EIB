@@ -6,7 +6,13 @@
 #'
 #' @inheritParams openxlsx2::wb_read
 #' @returns Character vector with field names
-load_eib_fields <- function(file, ..., sheet = 1, start_row = 5, start_col = 2) {
+load_eib_fields <- function(
+  file,
+  ...,
+  sheet = 1,
+  start_row = 5,
+  start_col = 2
+) {
   eib_wb <- openxlsx2::wb_read(
     file,
     sheet = sheet,

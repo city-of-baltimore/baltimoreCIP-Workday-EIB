@@ -8,10 +8,12 @@
 #'   to [tidyselect::starts_with()] and is not case sensitive.
 #' @returns A data frame with FY columns summed by the column names passed to
 #'   .by
-summarise_cip_data_fy <- function(data,
-                                  .by = NULL,
-                                  fy_col_prefix = "FY",
-                                  na.rm = TRUE) {
+summarise_cip_data_fy <- function(
+  data,
+  .by = NULL,
+  fy_col_prefix = "FY",
+  na.rm = TRUE
+) {
   data |>
     summarise(
       across(
