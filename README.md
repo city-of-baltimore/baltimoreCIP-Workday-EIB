@@ -2,17 +2,25 @@
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
-# Baltimore City Capital Budget Workday EIB Generation
+# Baltimore City Capital Budget Workday EIB Generation (Archived)
 
 <!-- badges: start -->
 
 [![License:
 MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Project Status: Active – The project has reached a stable, usable
-state and is being actively
-developed.](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
+[![Project Status: Inactive – The project has reached a stable, usable
+state but is no longer being actively developed; support/maintenance
+will be provided as time
+allows.](https://www.repostatus.org/badges/latest/inactive.svg)](https://www.repostatus.org/#inactive)
 
 <!-- badges: end -->
+
+> [!IMPORTANT]
+>
+> This project was superseded in June 2025 with the development of
+> similar functionality within the [{baltimoreCIPutils} R
+> package](https://github.com/city-of-baltimore/baltimoreCIPutils). Eli
+> Pousson archived the repository on May 5, 2026.
 
 The goal of the `baltimoreCIP-Workday-EIB` project is to convert the
 exported reports from Adaptive Planning into spreadsheets based on
